@@ -4,6 +4,12 @@
 #include <ArduinoOTA.h>
 #include <MQTT.h>
 #include "Adafruit_CCS811.h"
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#define DS3231_SCL 1 //---- Переназначаем стандартный пин для Wire.h
+#define DS3231_SDA 3 //---- Переназначаем стандартный пин для Wire.h
+LiquidCrystal_I2C lcd(0x27, 24, 2); //---- Адрес адаптера, количество символов, количество строк
 
 const char *ssid = "dd-wrt";
 const char *password = "";
@@ -38,6 +44,8 @@ void messageReceived(String &topic, String &payload) {
 }
 
 void setup() {
+    Wire.begin(DS3231_SDA, DS3231_SCL); //---- Запускаем I2C на нужных пинах
+
     Serial.begin(115200);
     Serial.println("Booting");
     WiFi.mode(WIFI_STA);
@@ -111,7 +119,7 @@ void setup() {
      * CCS811
      * */
 
-    if(!ccs.begin()){
+/*    if(!ccs.begin()){
         Serial.println("Failed to start sensor! Please check your wiring.");
         while(1);
     }
@@ -119,7 +127,7 @@ void setup() {
     //calibrate temperature sensor
     while(!ccs.available());
     float temp = ccs.calculateTemperature();
-    ccs.setTempOffset(temp - 25.0);
+    ccs.setTempOffset(temp - 25.0);*/
 }
 
 void loop() {
@@ -136,6 +144,8 @@ void loop() {
     if(ccs.available()){
         float temp = ccs.calculateTemperature();
         if(!ccs.readData()){
+            const char* co2 = reinterpret_cast<const char*>(ccs.geteCO2());
+
             client.publish("/co2", String(ccs.geteCO2()));
             Serial.print("/co2");
             Serial.println(String(ccs.geteCO2()));
@@ -147,6 +157,13 @@ void loop() {
             client.publish("/temp", String(temp));
             Serial.print("/temp");
             Serial.println(String(temp));
+
+            lcd.begin();
+            lcd.setCursor(0, 0); // 1 строка
+            lcd.print("co2: ");
+            lcd.print(co2);
+            lcd.setCursor(0, 1); // 2 строка
+            lcd.print("засада");
         }
         else{
             Serial.println("ERROR!");
